@@ -626,8 +626,7 @@
                 <div id="joinForm" class="hidden">
                     <div class="input-group">
                         <label for="roomCodeInput">Enter Room Code:</label>
-                        <input type="text" id="roomCodeInput" placeholder="e.g. WATER-2026" 
-                               style="text-transform: uppercase;">
+                        <input type="text" id="roomCodeInput" placeholder="Paste room code here">
                     </div>
                     <button class="btn btn-primary" onclick="joinGame()" style="width: 100%;">
                         Join Game
@@ -848,13 +847,17 @@
         
         // Create a new game
         function createGame() {
+            if (!myPeerId) {
+                alert('Still connecting to PeerJS server. Please wait a moment and try again.');
+                return;
+            }
             isHost = true;
-            roomCode = generateRoomCode();
-            
+            roomCode = myPeerId;
+
             document.getElementById('lobbyScreen').classList.add('hidden');
             document.getElementById('waitingRoom').classList.remove('hidden');
             document.getElementById('displayRoomCode').textContent = roomCode;
-            
+
             updateConnectionStatus('Hosting Game', true);
         }
         
@@ -871,7 +874,7 @@
         
         // Join existing game
         function joinGame() {
-            const input = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            const input = document.getElementById('roomCodeInput').value.trim();
             if (!input) {
                 alert('Please enter a room code');
                 return;
