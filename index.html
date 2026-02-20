@@ -941,6 +941,9 @@
                 gameState = data.state;
                 renderGame();
             } else if (data.type === 'roleUpdate') {
+                data.roles.forEach((r, idx) => {
+                    gameState.players[idx].peerId = r.peerId;
+                });
                 updateRoleSelectionUI();
             } else if (data.type === 'chat') {
                 addChatMessage(data.sender, data.message);
@@ -953,7 +956,7 @@
         function handlePlayerMessage(peerId, data) {
             if (data.type === 'join') {
                 console.log('Player joined:', peerId);
-                broadcastToAll({ type: 'roleUpdate' });
+                broadcastToAll({ type: 'roleUpdate', roles: gameState.players.map(p => ({ peerId: p.peerId })) });
             } else if (data.type === 'selectRole') {
                 handleRoleSelection(peerId, data.roleIdx);
             } else if (data.type === 'action') {
@@ -986,7 +989,7 @@
                 gameState.players[roleIdx].peerId = myPeerId;
                 myRole = roleIdx;
                 updateRoleSelectionUI();
-                broadcastToAll({ type: 'roleUpdate' });
+                broadcastToAll({ type: 'roleUpdate', roles: gameState.players.map(p => ({ peerId: p.peerId })) });
                 checkStartConditions();
             } else {
                 // Client sends request to host
@@ -1008,7 +1011,7 @@
                 });
                 
                 role.peerId = peerId;
-                broadcastToAll({ type: 'roleUpdate' });
+                broadcastToAll({ type: 'roleUpdate', roles: gameState.players.map(p => ({ peerId: p.peerId })) });
                 updateRoleSelectionUI();
                 checkStartConditions();
             }
