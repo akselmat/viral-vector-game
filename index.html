@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viral Vector - Online Multiplayer</title>
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #00d4ff;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+        
+        /* Lobby Screen */
+        .lobby-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+        }
+        
+        .lobby-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #00d4ff;
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .lobby-title {
+            font-size: 1.8em;
+            color: #00d4ff;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .lobby-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #00d4ff;
+            color: #1a1a2e;
+        }
+        
+        .btn-primary:hover {
+            background: #00ffcc;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #ffa502;
+            color: #1a1a2e;
+        }
+        
+        .btn-secondary:hover {
+            background: #ffcc00;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .input-group {
+            margin: 15px 0;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid #00d4ff;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 1.1em;
+        }
+        
+        .room-code-display {
+            background: #0f3460;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+            border: 2px solid #00d4ff;
+        }
+        
+        .room-code-display .code {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #00d4ff;
+            letter-spacing: 3px;
+            margin: 10px 0;
+        }
+        
+        /* Role Selection */
+        .role-selection {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .role-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #555;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .role-card:hover:not(.taken) {
+            border-color: #00d4ff;
+            transform: translateY(-3px);
+        }
+        
+        .role-card.selected {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+        
+        .role-card.taken {
+            border-color: #ff4757;
+            background: rgba(255, 71, 87, 0.1);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .role-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        .role-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+        
+        .role-desc {
+            font-size: 0.9em;
+            color: #aaa;
+        }
+        
+        /* Players List */
+        .players-list {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .players-list h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+        }
+        
+        .player-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .player-item .icon {
+            font-size: 2em;
+        }
+        
+        .player-item .name {
+            flex: 1;
+            font-weight: bold;
+        }
+        
+        .player-item .status {
+            color: #2ed573;
+        }
+        
+        .player-item.host {
+            border: 2px solid #ffa502;
+        }
+        
+        /* Game Screen */
+        .game-screen {
+            display: none;
+        }
+        
+        .game-screen.active {
+            display: block;
+        }
+        
+        .game-status {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        
+        .stat-label {
+            color: #aaa;
+            margin-top: 5px;
+        }
+        
+        .crisis-alert {
+            background: linear-gradient(135deg, #ee5a6f 0%, #c44569 100%);
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #ff6b81;
+        }
+        
+        .crisis-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .population-viz {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .population-bar {
+            display: flex;
+            height: 40px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .bar-truth {
+            background: #2ed573;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: width 0.5s ease;
+        }
+        
+        .bar-lie {
+            background: #ff4757;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: width 0.5s ease;
+        }
+        
+        .bar-neutral {
+            background: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: width 0.5s ease;
+        }
+        
+        .chat-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chat-messages {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        
+        .chat-message {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            border-left: 3px solid #00d4ff;
+        }
+        
+        .chat-sender {
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+        
+        .chat-input-area {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chat-input-area input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #00d4ff;
+            background: #1a1a2e;
+            color: #fff;
+        }
+        
+        .players-area {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .player-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #00d4ff;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .player-panel.my-role {
+            border-color: #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+        
+        .player-panel.active-turn {
+            border-color: #ffa502;
+            animation: pulse-border 2s infinite;
+        }
+        
+        @keyframes pulse-border {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 165, 2, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(255, 165, 2, 0.8); }
+        }
+        
+        .player-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 15px;
+        }
+        
+        .player-icon {
+            width: 50px;
+            height: 50px;
+            background: #00d4ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+        }
+        
+        .player-info h3 {
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+        
+        .player-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+        
+        .network-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 5px;
+            margin: 15px 0;
+        }
+        
+        .follower-dot {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: #00d4ff;
+            transition: all 0.3s ease;
+        }
+        
+        .follower-dot.truth {
+            background: #2ed573;
+        }
+        
+        .follower-dot.lie {
+            background: #ff4757;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .follower-dot.neutral {
+            background: #555;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+        
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn-post {
+            background: #00d4ff;
+            color: #1a1a2e;
+            padding: 12px 20px;
+        }
+        
+        .btn-post:hover:not(:disabled) {
+            background: #00ffcc;
+            transform: translateY(-2px);
+        }
+        
+        .btn-check {
+            background: #ffa502;
+            color: #1a1a2e;
+            padding: 12px 20px;
+        }
+        
+        .btn-check:hover:not(:disabled) {
+            background: #ffcc00;
+            transform: translateY(-2px);
+        }
+        
+        .player-action-status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            font-size: 0.9em;
+            min-height: 40px;
+        }
+        
+        .credibility-bar {
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .credibility-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            transition: width 0.3s ease;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .btn-control {
+            background: #00d4ff;
+            color: #1a1a2e;
+            padding: 15px 30px;
+            font-size: 1.1em;
+        }
+        
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .game-over.show {
+            display: flex;
+        }
+        
+        .game-over-content {
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #00d4ff;
+            text-align: center;
+            max-width: 600px;
+        }
+        
+        .game-over-title {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        
+        .win {
+            color: #2ed573;
+        }
+        
+        .lose {
+            color: #ff4757;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 2px solid #00d4ff;
+            font-size: 0.9em;
+            z-index: 100;
+        }
+        
+        .connection-status.connected {
+            border-color: #2ed573;
+        }
+        
+        .connection-status.disconnected {
+            border-color: #ff4757;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+            
+            .role-selection {
+                grid-template-columns: 1fr;
+            }
+            
+            .players-area {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦠 VIRAL VECTOR</h1>
+        
+        <div class="connection-status" id="connectionStatus">
+            <span id="statusText">Initializing...</span>
+        </div>
+        
+        <!-- Lobby Screen -->
+        <div class="lobby-screen" id="lobbyScreen">
+            <div class="lobby-card">
+                <div class="lobby-title">Welcome to Viral Vector</div>
+                <p style="text-align: center; margin-bottom: 20px; color: #aaa;">
+                    A cooperative multiplayer game about fighting misinformation
+                </p>
+                
+                <div class="lobby-buttons">
+                    <button class="btn btn-primary" onclick="createGame()">
+                        🎮 Create New Game
+                    </button>
+                    <button class="btn btn-secondary" onclick="showJoinForm()">
+                        🔗 Join Existing Game
+                    </button>
+                </div>
+                
+                <div id="joinForm" class="hidden">
+                    <div class="input-group">
+                        <label for="roomCodeInput">Enter Room Code:</label>
+                        <input type="text" id="roomCodeInput" placeholder="e.g. WATER-2026" 
+                               style="text-transform: uppercase;">
+                    </div>
+                    <button class="btn btn-primary" onclick="joinGame()" style="width: 100%;">
+                        Join Game
+                    </button>
+                    <button class="btn" onclick="hideJoinForm()" 
+                            style="width: 100%; margin-top: 10px; background: #555; color: #fff;">
+                        Back
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Waiting Room -->
+        <div class="lobby-screen hidden" id="waitingRoom">
+            <div class="lobby-card" style="max-width: 700px;">
+                <div class="lobby-title">Game Lobby</div>
+                
+                <div class="room-code-display">
+                    <div style="color: #aaa;">Room Code:</div>
+                    <div class="code" id="displayRoomCode">LOADING</div>
+                    <div style="color: #aaa; font-size: 0.9em;">Share this code with your friends!</div>
+                </div>
+                
+                <div class="players-list" id="connectedPlayers">
+                    <h3>Connected Players (0/4)</h3>
+                    <div id="playersList"></div>
+                </div>
+                
+                <div class="lobby-title" style="font-size: 1.4em; margin-top: 20px;">Select Your Role</div>
+                <div class="role-selection" id="roleSelection">
+                    <div class="role-card" onclick="selectRole(0)">
+                        <div class="role-icon">🏥</div>
+                        <div class="role-name">Health Official</div>
+                        <div class="role-desc">500K followers • High credibility</div>
+                    </div>
+                    <div class="role-card" onclick="selectRole(1)">
+                        <div class="role-icon">📰</div>
+                        <div class="role-name">News Reporter</div>
+                        <div class="role-desc">1M followers • Medium credibility</div>
+                    </div>
+                    <div class="role-card" onclick="selectRole(2)">
+                        <div class="role-icon">🎮</div>
+                        <div class="role-name">Influencer</div>
+                        <div class="role-desc">2M followers • Fast spread</div>
+                    </div>
+                    <div class="role-card" onclick="selectRole(3)">
+                        <div class="role-icon">🏛️</div>
+                        <div class="role-name">Government</div>
+                        <div class="role-desc">300K followers • Official authority</div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" id="startGameBtn" onclick="startGame()" 
+                        style="width: 100%; margin-top: 20px;" disabled>
+                    Start Game (Need 2-4 players)
+                </button>
+            </div>
+        </div>
+        
+        <!-- Game Screen -->
+        <div class="game-screen" id="gameScreen">
+            <div class="game-status">
+                <div class="stat">
+                    <div class="stat-value" id="turnCounter">1</div>
+                    <div class="stat-label">Turn (of 10)</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="truthPercent">30%</div>
+                    <div class="stat-label">Believe Truth</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="liePercent">20%</div>
+                    <div class="stat-label">Believe Lie</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="neutralPercent">50%</div>
+                    <div class="stat-label">Undecided</div>
+                </div>
+            </div>
+            
+            <div class="crisis-alert">
+                <div class="crisis-title">⚠️ BREAKING: Water Plant Rumor Spreading!</div>
+                <p><strong>FALSE CLAIM:</strong> "New water treatment plant is poisoning the city's water!"</p>
+                <p style="margin-top: 10px;"><strong>THE TRUTH:</strong> Plant uses standard, safe chlorine levels approved by health authorities.</p>
+            </div>
+            
+            <div class="population-viz">
+                <h3 style="color: #00d4ff; margin-bottom: 10px;">📊 Population Belief Status</h3>
+                <div class="population-bar">
+                    <div class="bar-truth" id="barTruth" style="width: 30%;">30%</div>
+                    <div class="bar-lie" id="barLie" style="width: 20%;">20%</div>
+                    <div class="bar-neutral" id="barNeutral" style="width: 50%;">50%</div>
+                </div>
+            </div>
+            
+            <div class="chat-section">
+                <h3 style="color: #00d4ff; margin-bottom: 10px;">💬 Team Communication</h3>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-message">
+                        <div class="chat-sender">GAME MASTER</div>
+                        <div>Crisis detected! Coordinate your response. Turn 1 begins now.</div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatInput" placeholder="Type your message...">
+                    <button class="btn btn-primary" onclick="sendChat()">Send</button>
+                </div>
+            </div>
+            
+            <div class="players-area" id="playersArea"></div>
+            
+            <div class="controls">
+                <button class="btn btn-control" onclick="nextTurn()" id="nextTurnBtn" disabled>
+                    ⏭️ Next Turn
+                </button>
+            </div>
+        </div>
+        
+        <div class="game-over" id="gameOver">
+            <div class="game-over-content">
+                <div class="game-over-title" id="gameOverTitle"></div>
+                <p id="gameOverMessage" style="font-size: 1.3em; margin-bottom: 30px;"></p>
+                <button class="btn btn-control" onclick="returnToLobby()">Return to Lobby</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Peer connection
+        let peer = null;
+        let isHost = false;
+        let hostConnection = null;
+        let connections = {};
+        let roomCode = '';
+        let myRole = null;
+        let myPeerId = '';
+        
+        // Game state
+        let gameState = {
+            turn: 1,
+            maxTurns: 10,
+            players: [
+                {
+                    name: 'Health Official',
+                    icon: '🏥',
+                    followers: 50,
+                    credibility: 90,
+                    network: [],
+                    hasActed: false,
+                    isFactChecking: false,
+                    peerId: null
+                },
+                {
+                    name: 'News Reporter',
+                    icon: '📰',
+                    followers: 100,
+                    credibility: 70,
+                    network: [],
+                    hasActed: false,
+                    isFactChecking: false,
+                    peerId: null
+                },
+                {
+                    name: 'Influencer',
+                    icon: '🎮',
+                    followers: 200,
+                    credibility: 60,
+                    network: [],
+                    hasActed: false,
+                    isFactChecking: false,
+                    peerId: null
+                },
+                {
+                    name: 'Government Agency',
+                    icon: '🏛️',
+                    followers: 30,
+                    credibility: 85,
+                    network: [],
+                    hasActed: false,
+                    isFactChecking: false,
+                    peerId: null
+                }
+            ],
+            totalPopulation: 380,
+            believeTruth: 0,
+            believeLie: 0,
+            undecided: 380,
+            started: false
+        };
+        
+        // Initialize PeerJS
+        function initPeer() {
+            // Use free PeerJS cloud server
+            peer = new Peer({
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
+            });
+            
+            peer.on('open', (id) => {
+                myPeerId = id;
+                console.log('My peer ID:', id);
+                updateConnectionStatus('Connected', true);
+            });
+            
+            peer.on('connection', (conn) => {
+                handleIncomingConnection(conn);
+            });
+            
+            peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                updateConnectionStatus('Connection Error', false);
+            });
+        }
+        
+        // Create a new game
+        function createGame() {
+            isHost = true;
+            roomCode = generateRoomCode();
+            
+            document.getElementById('lobbyScreen').classList.add('hidden');
+            document.getElementById('waitingRoom').classList.remove('hidden');
+            document.getElementById('displayRoomCode').textContent = roomCode;
+            
+            updateConnectionStatus('Hosting Game', true);
+        }
+        
+        // Show join form
+        function showJoinForm() {
+            document.querySelector('.lobby-buttons').classList.add('hidden');
+            document.getElementById('joinForm').classList.remove('hidden');
+        }
+        
+        function hideJoinForm() {
+            document.querySelector('.lobby-buttons').classList.remove('hidden');
+            document.getElementById('joinForm').classList.add('hidden');
+        }
+        
+        // Join existing game
+        function joinGame() {
+            const input = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (!input) {
+                alert('Please enter a room code');
+                return;
+            }
+            
+            // Room code is actually the host's peer ID
+            const hostPeerId = input;
+            
+            updateConnectionStatus('Connecting...', true);
+            
+            hostConnection = peer.connect(hostPeerId);
+            
+            hostConnection.on('open', () => {
+                console.log('Connected to host');
+                roomCode = input;
+                
+                // Send join request
+                hostConnection.send({
+                    type: 'join',
+                    peerId: myPeerId
+                });
+                
+                document.getElementById('lobbyScreen').classList.add('hidden');
+                document.getElementById('waitingRoom').classList.remove('hidden');
+                document.getElementById('displayRoomCode').textContent = roomCode;
+                
+                updateConnectionStatus('Connected to Game', true);
+            });
+            
+            hostConnection.on('data', (data) => {
+                handleHostMessage(data);
+            });
+            
+            hostConnection.on('error', (err) => {
+                console.error('Connection error:', err);
+                alert('Failed to connect to game. Check the room code and try again.');
+                updateConnectionStatus('Connection Failed', false);
+            });
+        }
+        
+        // Handle incoming connections (host only)
+        function handleIncomingConnection(conn) {
+            if (!isHost) return;
+            
+            conn.on('open', () => {
+                console.log('Player connected:', conn.peer);
+                connections[conn.peer] = conn;
+            });
+            
+            conn.on('data', (data) => {
+                handlePlayerMessage(conn.peer, data);
+            });
+            
+            conn.on('close', () => {
+                console.log('Player disconnected:', conn.peer);
+                delete connections[conn.peer];
+                handlePlayerDisconnect(conn.peer);
+            });
+        }
+        
+        // Handle messages from host (client only)
+        function handleHostMessage(data) {
+            if (data.type === 'gameState') {
+                gameState = data.state;
+                renderGame();
+            } else if (data.type === 'roleUpdate') {
+                updateRoleSelectionUI();
+            } else if (data.type === 'chat') {
+                addChatMessage(data.sender, data.message);
+            } else if (data.type === 'startGame') {
+                startGameClient();
+            }
+        }
+        
+        // Handle messages from players (host only)
+        function handlePlayerMessage(peerId, data) {
+            if (data.type === 'join') {
+                console.log('Player joined:', peerId);
+                broadcastToAll({ type: 'roleUpdate' });
+            } else if (data.type === 'selectRole') {
+                handleRoleSelection(peerId, data.roleIdx);
+            } else if (data.type === 'action') {
+                handlePlayerAction(data.roleIdx, data.action, data.params);
+            } else if (data.type === 'chat') {
+                // Broadcast chat to all players
+                broadcastToAll({
+                    type: 'chat',
+                    sender: data.sender,
+                    message: data.message
+                });
+                addChatMessage(data.sender, data.message);
+            }
+        }
+        
+        // Select role
+        function selectRole(roleIdx) {
+            const role = gameState.players[roleIdx];
+            
+            // Check if role is already taken
+            if (role.peerId && role.peerId !== myPeerId) {
+                return; // Role taken
+            }
+            
+            if (isHost) {
+                // Host can directly assign
+                gameState.players[roleIdx].peerId = myPeerId;
+                myRole = roleIdx;
+                updateRoleSelectionUI();
+                checkStartConditions();
+            } else {
+                // Client sends request to host
+                hostConnection.send({
+                    type: 'selectRole',
+                    roleIdx: roleIdx
+                });
+            }
+        }
+        
+        // Handle role selection (host only)
+        function handleRoleSelection(peerId, roleIdx) {
+            const role = gameState.players[roleIdx];
+            
+            if (!role.peerId || role.peerId === peerId) {
+                // Clear previous role if player had one
+                gameState.players.forEach(p => {
+                    if (p.peerId === peerId) p.peerId = null;
+                });
+                
+                role.peerId = peerId;
+                broadcastToAll({ type: 'roleUpdate' });
+                updateRoleSelectionUI();
+                checkStartConditions();
+            }
+        }
+        
+        // Update role selection UI
+        function updateRoleSelectionUI() {
+            const roleCards = document.querySelectorAll('.role-card');
+            
+            gameState.players.forEach((player, idx) => {
+                const card = roleCards[idx];
+                card.classList.remove('selected', 'taken');
+                
+                if (player.peerId === myPeerId) {
+                    card.classList.add('selected');
+                    myRole = idx;
+                } else if (player.peerId) {
+                    card.classList.add('taken');
+                }
+            });
+            
+            updatePlayersList();
+            checkStartConditions();
+        }
+        
+        // Update players list
+        function updatePlayersList() {
+            const playersList = document.getElementById('playersList');
+            const connectedPlayers = document.getElementById('connectedPlayers');
+            
+            const assignedPlayers = gameState.players.filter(p => p.peerId);
+            const count = assignedPlayers.length;
+            
+            connectedPlayers.querySelector('h3').textContent = `Connected Players (${count}/4)`;
+            
+            playersList.innerHTML = '';
+            
+            assignedPlayers.forEach(player => {
+                const item = document.createElement('div');
+                item.className = 'player-item';
+                if (isHost && player.peerId === myPeerId) {
+                    item.classList.add('host');
+                }
+                
+                item.innerHTML = `
+                    <div class="icon">${player.icon}</div>
+                    <div class="name">${player.name}</div>
+                    <div class="status">✓ Ready</div>
+                `;
+                
+                playersList.appendChild(item);
+            });
+        }
+        
+        // Check if game can start
+        function checkStartConditions() {
+            if (!isHost) return;
+            
+            const assignedCount = gameState.players.filter(p => p.peerId).length;
+            const startBtn = document.getElementById('startGameBtn');
+            
+            if (assignedCount >= 2) {
+                startBtn.disabled = false;
+                startBtn.textContent = `Start Game (${assignedCount} players ready)`;
+            } else {
+                startBtn.disabled = true;
+                startBtn.textContent = 'Start Game (Need 2-4 players)';
+            }
+        }
+        
+        // Start game (host only)
+        function startGame() {
+            if (!isHost) return;
+            
+            const assignedCount = gameState.players.filter(p => p.peerId).length;
+            if (assignedCount < 2) return;
+            
+            initGameState();
+            gameState.started = true;
+            
+            broadcastToAll({ type: 'startGame' });
+            startGameClient();
+        }
+        
+        // Start game (all clients)
+        function startGameClient() {
+            document.getElementById('waitingRoom').classList.add('hidden');
+            document.getElementById('gameScreen').classList.add('active');
+            
+            renderGame();
+        }
+        
+        // Initialize game state
+        function initGameState() {
+            gameState.believeTruth = 0;
+            gameState.believeLie = 0;
+            gameState.undecided = gameState.totalPopulation;
+            
+            gameState.players.forEach((player, idx) => {
+                player.network = [];
+                player.hasActed = false;
+                player.isFactChecking = false;
+                
+                for (let i = 0; i < player.followers; i++) {
+                    let state = 'neutral';
+                    if (Math.random() < 0.3) {
+                        state = 'truth';
+                        gameState.believeTruth++;
+                        gameState.undecided--;
+                    } else if (Math.random() < 0.25) {
+                        state = 'lie';
+                        gameState.believeLie++;
+                        gameState.undecided--;
+                    }
+                    player.network.push(state);
+                }
+            });
+        }
+        
+        // Render game
+        function renderGame() {
+            if (!gameState.started) return;
+            
+            // Update turn counter
+            document.getElementById('turnCounter').textContent = gameState.turn;
+            
+            // Calculate percentages
+            const truthPercent = Math.round((gameState.believeTruth / gameState.totalPopulation) * 100);
+            const liePercent = Math.round((gameState.believeLie / gameState.totalPopulation) * 100);
+            const neutralPercent = Math.round((gameState.undecided / gameState.totalPopulation) * 100);
+            
+            document.getElementById('truthPercent').textContent = truthPercent + '%';
+            document.getElementById('liePercent').textContent = liePercent + '%';
+            document.getElementById('neutralPercent').textContent = neutralPercent + '%';
+            
+            // Update bars
+            document.getElementById('barTruth').style.width = truthPercent + '%';
+            document.getElementById('barTruth').textContent = truthPercent > 10 ? truthPercent + '%' : '';
+            document.getElementById('barLie').style.width = liePercent + '%';
+            document.getElementById('barLie').textContent = liePercent > 10 ? liePercent + '%' : '';
+            document.getElementById('barNeutral').style.width = neutralPercent + '%';
+            document.getElementById('barNeutral').textContent = neutralPercent > 10 ? neutralPercent + '%' : '';
+            
+            // Render player panels
+            renderPlayerPanels();
+            
+            // Check for game end
+            if (gameState.turn > gameState.maxTurns) {
+                endGame();
+            }
+        }
+        
+        // Render player panels
+        function renderPlayerPanels() {
+            const playersArea = document.getElementById('playersArea');
+            playersArea.innerHTML = '';
+            
+            gameState.players.forEach((player, idx) => {
+                if (!player.peerId) return; // Skip unassigned roles
+                
+                const panel = document.createElement('div');
+                panel.className = 'player-panel';
+                
+                if (player.peerId === myPeerId) {
+                    panel.classList.add('my-role');
+                }
+                
+                const canAct = player.peerId === myPeerId && !player.hasActed;
+                
+                panel.innerHTML = `
+                    <div class="player-header">
+                        <div class="player-icon">${player.icon}</div>
+                        <div class="player-info">
+                            <h3>${player.name} ${player.peerId === myPeerId ? '(You)' : ''}</h3>
+                            <div class="player-stats">
+                                <span>👥 ${player.followers}0K</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <strong>Credibility:</strong>
+                        <div class="credibility-bar">
+                            <div class="credibility-fill" style="width: ${player.credibility}%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="network-grid" id="network${idx}"></div>
+                    
+                    ${canAct ? `
+                        <div class="action-buttons">
+                            <button class="btn btn-post" onclick="playerAction(${idx}, 'post')">
+                                ⚡ Quick Post
+                            </button>
+                            <button class="btn btn-check" onclick="playerAction(${idx}, 'factcheck')">
+                                🔍 Fact-Check First
+                            </button>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="player-action-status">
+                        ${player.hasActed ? (player.isFactChecking ? '🔍 Fact-checking...' : '✅ Posted this turn') : (player.peerId === myPeerId ? 'Your turn - choose an action' : 'Waiting...')}
+                    </div>
+                `;
+                
+                playersArea.appendChild(panel);
+                
+                // Render network
+                const networkDiv = document.getElementById(`network${idx}`);
+                player.network.forEach(state => {
+                    const dot = document.createElement('div');
+                    dot.className = `follower-dot ${state}`;
+                    networkDiv.appendChild(dot);
+                });
+            });
+            
+            // Check if all players have acted
+            const activePlayers = gameState.players.filter(p => p.peerId);
+            const allActed = activePlayers.every(p => p.hasActed);
+            
+            if (isHost) {
+                document.getElementById('nextTurnBtn').disabled = !allActed;
+            }
+        }
+        
+        // Player action
+        function playerAction(roleIdx, action) {
+            if (isHost) {
+                handlePlayerAction(roleIdx, action);
+            } else {
+                hostConnection.send({
+                    type: 'action',
+                    roleIdx: roleIdx,
+                    action: action
+                });
+            }
+        }
+        
+        // Handle player action (host processes)
+        function handlePlayerAction(roleIdx, action, params = {}) {
+            const player = gameState.players[roleIdx];
+            
+            if (player.hasActed) return;
+            
+            if (action === 'post') {
+                postMessage(roleIdx, params.isFactChecked || false);
+            } else if (action === 'factcheck') {
+                factCheck(roleIdx);
+            }
+            
+            syncGameState();
+        }
+        
+        // Post message
+        function postMessage(playerIdx, isFactChecked) {
+            const player = gameState.players[playerIdx];
+            
+            let effectiveness = player.credibility;
+            
+            if (isFactChecked) {
+                effectiveness = Math.min(100, effectiveness + 15);
+                player.credibility = Math.min(100, player.credibility + 5);
+            } else {
+                player.credibility = Math.max(30, player.credibility - 5);
+            }
+            
+            let converted = 0;
+            player.network.forEach((state, idx) => {
+                if (state === 'neutral' || state === 'lie') {
+                    const conversionChance = effectiveness / 100;
+                    if (Math.random() < conversionChance) {
+                        if (state === 'lie') {
+                            gameState.believeLie--;
+                        } else {
+                            gameState.undecided--;
+                        }
+                        player.network[idx] = 'truth';
+                        gameState.believeTruth++;
+                        converted++;
+                    }
+                }
+            });
+            
+            player.hasActed = true;
+            
+            const message = `Posted message! Converted ${converted} followers. ${isFactChecked ? '✓ Fact-checked' : '⚡ Quick post'}`;
+            broadcastChat(player.name, message);
+        }
+        
+        // Fact check
+        function factCheck(playerIdx) {
+            const player = gameState.players[playerIdx];
+            player.isFactChecking = true;
+            player.hasActed = true;
+            
+            broadcastChat(player.name, 'Fact-checking... Will post next turn with higher credibility!');
+        }
+        
+        // Next turn (host only)
+        function nextTurn() {
+            if (!isHost) return;
+            
+            gameState.turn++;
+            
+            // Spread lie
+            spreadLie();
+            
+            // Process fact-checkers
+            gameState.players.forEach((player, idx) => {
+                if (player.isFactChecking) {
+                    player.isFactChecking = false;
+                    postMessage(idx, true);
+                }
+                player.hasActed = false;
+            });
+            
+            broadcastChat('GAME MASTER', `Turn ${gameState.turn} begins. The lie continues to spread...`);
+            
+            syncGameState();
+            
+            if (gameState.turn > gameState.maxTurns) {
+                endGame();
+            }
+        }
+        
+        // Spread lie
+        function spreadLie() {
+            let lieConverted = 0;
+            
+            gameState.players.forEach(player => {
+                player.network.forEach((state, idx) => {
+                    if (state === 'neutral') {
+                        if (Math.random() < 0.30) {
+                            player.network[idx] = 'lie';
+                            gameState.believeLie++;
+                            gameState.undecided--;
+                            lieConverted++;
+                        }
+                    }
+                });
+            });
+            
+            if (lieConverted > 0) {
+                broadcastChat('⚠️ MISINFORMATION', `The lie spread to ${lieConverted} more people this turn!`);
+            }
+        }
+        
+        // Send chat
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            const myPlayer = gameState.players[myRole];
+            const sender = `${myPlayer.icon} ${myPlayer.name}`;
+            
+            if (isHost) {
+                broadcastChat(sender, message);
+            } else {
+                hostConnection.send({
+                    type: 'chat',
+                    sender: sender,
+                    message: message
+                });
+            }
+            
+            input.value = '';
+        }
+        
+        // Broadcast chat
+        function broadcastChat(sender, message) {
+            addChatMessage(sender, message);
+            broadcastToAll({
+                type: 'chat',
+                sender: sender,
+                message: message
+            });
+        }
+        
+        // Add chat message
+        function addChatMessage(sender, message) {
+            const chatMessages = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'chat-message';
+            msgDiv.innerHTML = `<div class="chat-sender">${sender}</div><div>${message}</div>`;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Broadcast to all connected players
+        function broadcastToAll(data) {
+            if (!isHost) return;
+            
+            Object.values(connections).forEach(conn => {
+                try {
+                    conn.send(data);
+                } catch (e) {
+                    console.error('Failed to send to peer:', e);
+                }
+            });
+        }
+        
+        // Sync game state (host only)
+        function syncGameState() {
+            if (!isHost) return;
+            
+            broadcastToAll({
+                type: 'gameState',
+                state: gameState
+            });
+            
+            renderGame();
+        }
+        
+        // End game
+        function endGame() {
+            const truthPercent = (gameState.believeTruth / gameState.totalPopulation) * 100;
+            const liePercent = (gameState.believeLie / gameState.totalPopulation) * 100;
+            
+            const gameOverDiv = document.getElementById('gameOver');
+            const titleDiv = document.getElementById('gameOverTitle');
+            const messageDiv = document.getElementById('gameOverMessage');
+            
+            if (truthPercent >= 70) {
+                titleDiv.textContent = '🎉 VICTORY!';
+                titleDiv.className = 'game-over-title win';
+                messageDiv.textContent = `You successfully got ${Math.round(truthPercent)}% of the population to believe the truth! Great teamwork!`;
+            } else {
+                titleDiv.textContent = '😞 DEFEAT';
+                titleDiv.className = 'game-over-title lose';
+                messageDiv.textContent = `Only ${Math.round(truthPercent)}% believed the truth. Better coordination needed next time!`;
+            }
+            
+            gameOverDiv.classList.add('show');
+        }
+        
+        // Return to lobby
+        function returnToLobby() {
+            location.reload();
+        }
+        
+        // Handle player disconnect
+        function handlePlayerDisconnect(peerId) {
+            gameState.players.forEach(player => {
+                if (player.peerId === peerId) {
+                    player.peerId = null;
+                }
+            });
+            
+            updateRoleSelectionUI();
+            checkStartConditions();
+        }
+        
+        // Update connection status
+        function updateConnectionStatus(text, isConnected) {
+            const status = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('statusText');
+            
+            statusText.textContent = text;
+            status.className = 'connection-status ' + (isConnected ? 'connected' : 'disconnected');
+        }
+        
+        // Generate room code
+        function generateRoomCode() {
+            // For simplicity, room code IS the host's peer ID
+            return myPeerId;
+        }
+        
+        // Chat input enter key
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        sendChat();
+                    }
+                });
+            }
+        });
+        
+        // Initialize peer on load
+        initPeer();
+    </script>
+</body>
+</html>
