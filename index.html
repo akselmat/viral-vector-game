@@ -681,7 +681,7 @@
                 
                 <button class="btn btn-primary" id="startGameBtn" onclick="startGame()" 
                         style="width: 100%; margin-top: 20px;" disabled>
-                    Start Game (Need 2-4 players)
+                    Start Game (Pick a role first)
                 </button>
             </div>
         </div>
@@ -979,10 +979,14 @@
             }
             
             if (isHost) {
-                // Host can directly assign
+                // Clear previous role if host had one
+                gameState.players.forEach(p => {
+                    if (p.peerId === myPeerId) p.peerId = null;
+                });
                 gameState.players[roleIdx].peerId = myPeerId;
                 myRole = roleIdx;
                 updateRoleSelectionUI();
+                broadcastToAll({ type: 'roleUpdate' });
                 checkStartConditions();
             } else {
                 // Client sends request to host
@@ -1066,12 +1070,12 @@
             const assignedCount = gameState.players.filter(p => p.peerId).length;
             const startBtn = document.getElementById('startGameBtn');
             
-            if (assignedCount >= 2) {
+            if (assignedCount >= 1) {
                 startBtn.disabled = false;
-                startBtn.textContent = `Start Game (${assignedCount} players ready)`;
+                startBtn.textContent = `Start Game (${assignedCount} player${assignedCount > 1 ? 's' : ''} ready)`;
             } else {
                 startBtn.disabled = true;
-                startBtn.textContent = 'Start Game (Need 2-4 players)';
+                startBtn.textContent = 'Start Game (Pick a role first)';
             }
         }
         
