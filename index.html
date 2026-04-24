@@ -550,13 +550,50 @@
             font-size: 3em;
             margin-bottom: 20px;
         }
-        
+
         .win {
             color: #2ed573;
         }
-        
+
         .lose {
             color: #ff4757;
+        }
+
+        .consequences-list {
+            text-align: left;
+            margin: 20px 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .consequences-list li {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background: rgba(255, 71, 87, 0.15);
+            border-left: 4px solid #ff4757;
+            border-radius: 5px;
+            font-size: 1em;
+            color: #ff6b81;
+        }
+
+        .consequence-alert {
+            background: linear-gradient(135deg, #ff4757 0%, #c44569 100%);
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 2px solid #ff6b81;
+            animation: consequence-flash 0.5s ease;
+        }
+
+        @keyframes consequence-flash {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .consequence-alert .consequence-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
         }
         
         .connection-status {
@@ -751,8 +788,9 @@
         <div class="game-over" id="gameOver">
             <div class="game-over-content">
                 <div class="game-over-title" id="gameOverTitle"></div>
-                <p id="gameOverMessage" style="font-size: 1.3em; margin-bottom: 30px;"></p>
-                <button class="btn btn-control" onclick="returnToLobby()">Return to Lobby</button>
+                <p id="gameOverMessage" style="font-size: 1.3em; margin-bottom: 20px;"></p>
+                <div id="consequencesReport"></div>
+                <button class="btn btn-control" onclick="returnToLobby()" style="margin-top: 20px;">Return to Lobby</button>
             </div>
         </div>
     </div>
@@ -779,7 +817,7 @@
                     credibility: 90,
                     network: [],
                     hasActed: false,
-                    isFactChecking: false,
+                    factChecked: false,
                     peerId: null
                 },
                 {
@@ -789,7 +827,7 @@
                     credibility: 70,
                     network: [],
                     hasActed: false,
-                    isFactChecking: false,
+                    factChecked: false,
                     peerId: null
                 },
                 {
@@ -799,7 +837,7 @@
                     credibility: 60,
                     network: [],
                     hasActed: false,
-                    isFactChecking: false,
+                    factChecked: false,
                     peerId: null
                 },
                 {
@@ -809,7 +847,7 @@
                     credibility: 85,
                     network: [],
                     hasActed: false,
-                    isFactChecking: false,
+                    factChecked: false,
                     peerId: null
                 }
             ],
@@ -817,7 +855,8 @@
             believeTruth: 0,
             believeLie: 0,
             undecided: 380,
-            started: false
+            started: false,
+            earlyLoss: false
         };
         
         // Initialize PeerJS
@@ -1112,11 +1151,13 @@
             gameState.believeTruth = 0;
             gameState.believeLie = 0;
             gameState.undecided = gameState.totalPopulation;
+            gameState.earlyLoss = false;
+            consequencesFired = { 40: false, 50: false, 60: false, 70: false, 80: false };
             
             gameState.players.forEach((player, idx) => {
                 player.network = [];
                 player.hasActed = false;
-                player.isFactChecking = false;
+                player.factChecked = false;
                 
                 for (let i = 0; i < player.followers; i++) {
                     let state = 'neutral';
@@ -1162,7 +1203,7 @@
             renderPlayerPanels();
             
             // Check for game end
-            if (gameState.turn > gameState.maxTurns) {
+            if (gameState.earlyLoss || gameState.turn > gameState.maxTurns) {
                 endGame();
             }
         }
@@ -1207,7 +1248,7 @@
                     ${canAct ? `
                         <div class="action-buttons">
                             <button class="btn btn-post" onclick="playerAction(${idx}, 'post')">
-                                ⚡ Quick Post
+                                ⚡ Post
                             </button>
                             <button class="btn btn-check" onclick="playerAction(${idx}, 'factcheck')">
                                 🔍 Fact-Check First
@@ -1216,7 +1257,12 @@
                     ` : ''}
                     
                     <div class="player-action-status">
-                        ${player.hasActed ? (player.isFactChecking ? '🔍 Fact-checking...' : '✅ Posted this turn') : (player.peerId === myPeerId ? 'Your turn - choose an action' : 'Waiting...')}
+                        ${player.hasActed
+                            ? (player.factChecked ? '🔍 Fact-checked — next Post will be stronger!'
+                                : '✅ Posted this turn')
+                            : (player.factChecked
+                                ? (player.peerId === myPeerId ? '🔍 Fact-check ready! Post now for bonus credibility' : '🔍 Has fact-check buff')
+                                : (player.peerId === myPeerId ? 'Your turn — choose an action' : 'Waiting...'))}
                     </div>
                 `;
                 
@@ -1260,7 +1306,7 @@
             if (player.hasActed) return;
             
             if (action === 'post') {
-                postMessage(roleIdx, params.isFactChecked || false);
+                postMessage(roleIdx);
             } else if (action === 'factcheck') {
                 factCheck(roleIdx);
             }
@@ -1269,14 +1315,16 @@
         }
         
         // Post message
-        function postMessage(playerIdx, isFactChecked) {
+        function postMessage(playerIdx) {
             const player = gameState.players[playerIdx];
-            
+            const isFactChecked = player.factChecked || false;
+
             let effectiveness = player.credibility;
-            
+
             if (isFactChecked) {
                 effectiveness = Math.min(100, effectiveness + 15);
                 player.credibility = Math.min(100, player.credibility + 5);
+                player.factChecked = false; // consume the buff
             } else {
                 player.credibility = Math.max(30, player.credibility - 5);
             }
@@ -1300,17 +1348,17 @@
             
             player.hasActed = true;
             
-            const message = `Posted message! Converted ${converted} followers. ${isFactChecked ? '✓ Fact-checked' : '⚡ Quick post'}`;
+            const message = `Posted message! Converted ${converted} followers. ${isFactChecked ? '✓ Fact-checked' : '⚡ Posted'}`;
             broadcastChat(player.name, message);
         }
         
-        // Fact check
+        // Fact check — gives a buff for the player's next Post
         function factCheck(playerIdx) {
             const player = gameState.players[playerIdx];
-            player.isFactChecking = true;
+            player.factChecked = true;
             player.hasActed = true;
-            
-            broadcastChat(player.name, 'Fact-checking... Will post next turn with higher credibility!');
+
+            broadcastChat(player.name, 'Fact-checking... Next post will have higher credibility!');
         }
         
         // Next turn (host only)
@@ -1322,28 +1370,76 @@
             // Spread lie
             spreadLie();
             
-            // Process fact-checkers
-            gameState.players.forEach((player, idx) => {
-                if (player.isFactChecking) {
-                    player.isFactChecking = false;
-                    postMessage(idx, true);
-                }
+            // Reset all players for the new turn
+            gameState.players.forEach(player => {
                 player.hasActed = false;
             });
             
             broadcastChat('GAME MASTER', `Turn ${gameState.turn} begins. The lie continues to spread...`);
-            
+
+            // Check for consequence events (may trigger early game over)
+            const earlyEnd = checkConsequences();
+
             syncGameState();
-            
-            if (gameState.turn > gameState.maxTurns) {
+
+            if (!earlyEnd && gameState.turn > gameState.maxTurns) {
                 endGame();
             }
         }
         
+        // Consequence thresholds — tracks which have already fired
+        let consequencesFired = { 40: false, 50: false, 60: false, 70: false, 80: false };
+
+        // Consequence definitions
+        const consequenceEvents = {
+            40: {
+                title: '📉 PUBLIC TRUST DECLINING',
+                message: 'Residents are starting to avoid tap water. Bottled water sales surge 300%. Low-income families cannot afford alternatives.'
+            },
+            50: {
+                title: '🪧 PROTESTS ERUPT',
+                message: 'Angry protests break out at the water treatment plant. Local businesses near the plant shut down. Workers receive threats.'
+            },
+            60: {
+                title: '🏛️ POLITICAL CRISIS',
+                message: 'City council calls an emergency meeting. Officials consider shutting down the plant under public pressure, despite it being safe.'
+            },
+            70: {
+                title: '🏥 HEALTH CONSEQUENCES',
+                message: 'Hospitals report a spike in dehydration cases — families are refusing to drink tap water. Children and elderly are most affected.'
+            },
+            80: {
+                title: '🚨 CATASTROPHIC FAILURE',
+                message: 'The water treatment plant is forced to shut down due to overwhelming public pressure. The city now faces a REAL water crisis caused entirely by misinformation.'
+            }
+        };
+
+        // Check and fire consequences based on current lie percentage
+        function checkConsequences() {
+            const liePercent = Math.round((gameState.believeLie / gameState.totalPopulation) * 100);
+
+            for (const threshold of [40, 50, 60, 70, 80]) {
+                if (liePercent >= threshold && !consequencesFired[threshold]) {
+                    consequencesFired[threshold] = true;
+                    const event = consequenceEvents[threshold];
+                    broadcastChat(`${event.title}`, event.message);
+
+                    // Early game over at 80%
+                    if (threshold === 80) {
+                        gameState.earlyLoss = true;
+                        syncGameState();
+                        endGame();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         // Spread lie
         function spreadLie() {
             let lieConverted = 0;
-            
+
             gameState.players.forEach(player => {
                 player.network.forEach((state, idx) => {
                     if (state === 'neutral') {
@@ -1356,7 +1452,7 @@
                     }
                 });
             });
-            
+
             if (lieConverted > 0) {
                 broadcastChat('⚠️ MISINFORMATION', `The lie spread to ${lieConverted} more people this turn!`);
             }
@@ -1434,21 +1530,60 @@
         function endGame() {
             const truthPercent = (gameState.believeTruth / gameState.totalPopulation) * 100;
             const liePercent = (gameState.believeLie / gameState.totalPopulation) * 100;
-            
+
             const gameOverDiv = document.getElementById('gameOver');
             const titleDiv = document.getElementById('gameOverTitle');
             const messageDiv = document.getElementById('gameOverMessage');
-            
+            const reportDiv = document.getElementById('consequencesReport');
+
             if (truthPercent >= 70) {
                 titleDiv.textContent = '🎉 VICTORY!';
                 titleDiv.className = 'game-over-title win';
                 messageDiv.textContent = `You successfully got ${Math.round(truthPercent)}% of the population to believe the truth! Great teamwork!`;
+                reportDiv.innerHTML = '';
             } else {
-                titleDiv.textContent = '😞 DEFEAT';
-                titleDiv.className = 'game-over-title lose';
-                messageDiv.textContent = `Only ${Math.round(truthPercent)}% believed the truth. Better coordination needed next time!`;
+                // Defeat — show consequences
+                if (gameState.earlyLoss) {
+                    titleDiv.textContent = '🚨 CATASTROPHE';
+                    titleDiv.className = 'game-over-title lose';
+                    messageDiv.textContent = `The misinformation reached ${Math.round(liePercent)}% of the population. The damage is done.`;
+                } else {
+                    titleDiv.textContent = '😞 DEFEAT';
+                    titleDiv.className = 'game-over-title lose';
+                    messageDiv.textContent = `Only ${Math.round(truthPercent)}% believed the truth. The fake news won.`;
+                }
+
+                // Build consequences report based on how bad it got
+                const consequences = [];
+                consequences.push('Families stopped drinking safe tap water, causing dehydration and health problems — especially among children and the elderly.');
+                consequences.push('Bottled water prices skyrocketed. Low-income households could not afford clean water.');
+                consequences.push('Water treatment plant workers received threats and harassment based on false claims.');
+
+                if (liePercent >= 50) {
+                    consequences.push('Protests disrupted city services. Businesses near the plant were forced to close.');
+                }
+                if (liePercent >= 60) {
+                    consequences.push('Politicians pressured into costly, unnecessary investigations — diverting funds from real public health needs.');
+                }
+                if (liePercent >= 70) {
+                    consequences.push('Hospital admissions for dehydration increased significantly. Emergency services were overwhelmed.');
+                }
+                if (gameState.earlyLoss) {
+                    consequences.push('The safe water treatment plant was shut down due to public pressure. The city now faces a real water crisis — caused entirely by misinformation.');
+                }
+
+                reportDiv.innerHTML = `
+                    <h3 style="color: #ff4757; margin-bottom: 10px;">Consequences of the Fake News:</h3>
+                    <ul class="consequences-list">
+                        ${consequences.map(c => `<li>${c}</li>`).join('')}
+                    </ul>
+                    <p style="color: #aaa; font-size: 0.95em; margin-top: 15px;">
+                        These consequences mirror real-world impacts of health misinformation.
+                        Better coordination, fact-checking, and strategic communication could have prevented this outcome.
+                    </p>
+                `;
             }
-            
+
             gameOverDiv.classList.add('show');
         }
         
